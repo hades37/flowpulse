@@ -52,6 +52,46 @@ body {
   width: 100% !important;
 }
 
+/* ---------- 压缩 Excalidraw 左侧工具岛（默认被拉伸成 647px 巨块） ---------- */
+.canvas-wrap .excalidraw {
+  /* 缩小全局图标与 UI 字号 */
+  --default-icon-size: 18px;
+  font-size: 13px;
+}
+
+.canvas-wrap .excalidraw .App-toolbar-container {
+  width: auto !important;
+  height: auto !important;
+  max-height: calc(100vh - 120px) !important;
+}
+
+.canvas-wrap .excalidraw .Island.App-toolbar {
+  width: 56px !important;
+  max-width: 56px !important;
+  max-height: calc(100vh - 80px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none;
+  padding: 6px !important;
+}
+
+.canvas-wrap .excalidraw .App-toolbar .Stack {
+  width: 44px !important;
+  max-width: 44px !important;
+}
+
+.canvas-wrap .excalidraw .ToolIcon__icon,
+.canvas-wrap .excalidraw .ToolIcon_type_button {
+  width: 44px !important;
+  max-width: 44px !important;
+  height: 38px !important;
+  max-height: 38px !important;
+}
+
+.canvas-wrap .excalidraw .ToolIcon__keybinding {
+  display: none !important;
+}
+
 /* overlay：盖在画布之上，不拦截任何交互 */
 .flow-overlay {
   position: absolute;
