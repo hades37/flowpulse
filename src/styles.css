@@ -1,0 +1,103 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0d1017;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+}
+
+.app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Excalidraw 0.18 无限画布（33M px）必须被宿主显式约束，否则显示窗口错位 */
+.canvas-wrap .excalidraw {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* overlay：盖在画布之上，不拦截任何交互 */
+.flow-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* 控制面板 */
+.control-panel {
+  position: absolute;
+  top: 64px;
+  left: 16px;
+  z-index: 30;
+  background: rgba(22, 27, 38, 0.92);
+  border: 1px solid #2b3446;
+  border-radius: 14px;
+  padding: 14px 16px;
+  color: #dbe2f0;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 235px;
+  backdrop-filter: blur(6px);
+}
+
+.control-panel h1 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.control-panel h1 span {
+  font-size: 11px;
+  color: #5f6b83;
+  font-weight: 400;
+}
+
+.control-panel .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.control-panel button {
+  flex: 1;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.control-panel button:hover { background: #3b82f6; }
+.control-panel button.paused { background: #3a4358; }
+
+.control-panel .speed {
+  min-width: 36px;
+  text-align: right;
+  color: #8b94ab;
+}
+
+.control-panel input[type='range'] {
+  flex: 1;
+  accent-color: #2563eb;
+}
+
+.control-panel .hint {
+  margin: 0;
+  font-size: 11px;
+  color: #5f6b83;
+  line-height: 1.7;
+}
