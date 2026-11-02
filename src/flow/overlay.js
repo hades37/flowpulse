@@ -2,8 +2,11 @@ import { progresses, lerpPoint } from './kinematics.js'
 
 /**
  * overlay 渲染器：叠在 Excalidraw 画布之上的透明 canvas。
- * 只读它的 scene（boundArrow + 元素 bbox + appState 变换），
+ * 只读它的 scene（boundArrow + bbox + appState 变换），
  * 不污染场景数据 —— 数据包 / 涟漪 / 到达光圈全部画在自己层上。
+ *
+ * 每条箭头的动画参数存于 arrow.customData.flowpulse = { packets, durationMs }
+ * （Excalidraw 官方字段：随场景序列化 / 撤销 / 协作白送）。
  */
 
 const TAU = Math.PI * 2
@@ -28,11 +31,11 @@ export function createOverlay(canvas) {
 
   /**
    * 渲染一帧
-   * @param opts.arrows   绑定箭头元素（type=arrow 且 start/end 绑定齐全）
+   * @param opts.arrows   绑定箭头元素
    * @param opts.byId     id → 元素 映射
    * @param opts.state    appState（scrollX/scrollY/zoom）
    * @param opts.time     播放时钟 ms
-   * @param opts.speed    速度倍率
+   * @param opts.speed    全局速度倍率
    * @param opts.onArrive(edge, targetElement) 到达回调
    */
   function render({ arrows, byId, state, time, speed, onArrive }) {
@@ -46,14 +49,16 @@ export function createOverlay(canvas) {
       const a = { x: edge.x + pts[0][0], y: edge.y + pts[0][1] }
       const b = { x: edge.x + pts[pts.length - 1][0], y: edge.y + pts[pts.length - 1][1] }
       const color = edge.strokeColor || '#6ea8ff'
-      const n = edge.__packets ?? 2
-      const dur = (edge.__durationMs ?? 2200) / speed
+
+      const fp = edge.customData?.flowpulse ?? {}
+      const n = Math.max(1, fp.packets ?? 2)
+      const dur = (fp.durationMs ?? 2200) / (speed ?? 1)
 
       const list = progresses(time, n, dur)
       edge.__prev = edge.__prev ?? list
 
       for (let i = 0; i < n; i++) {
-        // 到达检测：回绕即到达（触发目标涟漪）
+        // 到达检测：帧间 progress 回绕即到达（触发目标涟漪）
         if (edge.__prev[i] > list[i] && onArrive) {
           const targetId = edge.end?.id ?? edge.endBinding?.elementId
           const target = targetId ? byId.get(targetId) : null
@@ -99,3 +104,6 @@ export function createOverlay(canvas) {
 
   return { resize, render }
 }
+
+/** arrow.customData.flowpulse 的缺省值（UI 与渲染共用） */
+export const FLOW_DEFAULTS = { packets: 2, durationMs: 2200 }
