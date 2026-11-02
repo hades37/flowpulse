@@ -112,3 +112,56 @@ export function Presenter({ cursor, total, playing, onReplay, onStop }) {
     </div>
   )
 }
+
+/** 顶部中央工具 dock（设计稿形态，驱动 Excalidraw setActiveTool） */
+export function ToolDock({ activeTool, onTool, onLibrary }) {
+  const TOOLS = [
+    { id: 'selection', icon: '➚', title: '选择' },
+    { id: 'hand', icon: '✋', title: '手型平移' },
+    null,
+    { id: 'rectangle', icon: '▭', title: '矩形' },
+    { id: 'diamond', icon: '◇', title: '菱形' },
+    { id: 'ellipse', icon: '◯', title: '椭圆' },
+    { id: 'arrow', icon: '↗', title: '箭头（连线）' },
+    { id: 'text', icon: 'T', title: '文字' },
+    null,
+    { id: 'library', icon: '☰', title: '模板中心' },
+  ]
+  return (
+    <div className="tooldock glass">
+      {TOOLS.map((t, i) =>
+        t === null
+          ? <div key={i} className="d-sep-v" />
+          : (
+            <button
+              key={t.id}
+              className={`t-btn${activeTool === t.id ? ' on' : ''}`}
+              title={t.title}
+              onClick={() => (t.id === 'library' ? onLibrary() : onTool(t.id))}
+            >
+              {t.icon}
+            </button>
+          ),
+      )}
+    </div>
+  )
+}
+
+/** 左下 zoom 浮岛 */
+export function ZoomIsland({ zoom, onZoom, onFit }) {
+  return (
+    <div className="zoomisland glass">
+      <button onClick={() => onZoom(-0.1)} title="缩小">−</button>
+      <span>{Math.round(zoom * 100)}%</span>
+      <button onClick={() => onZoom(0.1)} title="放大">＋</button>
+      <button onClick={onFit} title="适应内容">⛶</button>
+    </div>
+  )
+}
+
+/** 右下快捷键提示浮岛 */
+export function HintIsland() {
+  return (
+    <div className="hintisland glass">双击改字 · 拖角调大小 · 空格播放/暂停</div>
+  )
+}

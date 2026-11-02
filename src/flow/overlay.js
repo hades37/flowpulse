@@ -41,8 +41,9 @@ export function createOverlay(canvas) {
    *   activeIds: Set|null —— 非空时仅这些边流动（null=全部，编辑态）
    *   glows: Map<元素id, color> —— 持续高亮光圈（演示步骤当前节点）
    *   badges: Map<元素id, {kind:'active'|'success', color}> —— 状态徽标
+   * @param opts.effectsOn 到达涟漪开关（默认开）
    */
-  function render({ arrows, byId, state, time, speed, onArrive, present }) {
+  function render({ arrows, byId, state, time, speed, onArrive, present, effectsOn = true }) {
     const w = canvas.clientWidth
     const h = canvas.clientHeight
     ctx.clearRect(0, 0, w, h)
@@ -72,7 +73,7 @@ export function createOverlay(canvas) {
         if (edge.__prev[i] > list[i] && onArrive) {
           const targetId = edge.end?.id ?? edge.endBinding?.elementId
           const target = targetId ? byId.get(targetId) : null
-          if (target) {
+          if (target && effectsOn) {
             const c = toViewport(
               { x: target.x + target.width / 2, y: target.y + target.height / 2 },
               state,

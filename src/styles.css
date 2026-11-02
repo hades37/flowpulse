@@ -52,45 +52,83 @@ body {
   width: 100% !important;
 }
 
-/* ---------- 压缩 Excalidraw 左侧工具岛（默认被拉伸成 647px 巨块） ---------- */
+/* ---------- 压缩 Excalidraw 左侧工具岛 → 完全隐藏（自建顶部 dock 取代） ---------- */
 .canvas-wrap .excalidraw {
-  /* 缩小全局图标与 UI 字号 */
   --default-icon-size: 18px;
   font-size: 13px;
 }
 
 .canvas-wrap .excalidraw .App-toolbar-container {
-  width: auto !important;
-  height: auto !important;
-  max-height: calc(100vh - 120px) !important;
-}
-
-.canvas-wrap .excalidraw .Island.App-toolbar {
-  width: 56px !important;
-  max-width: 56px !important;
-  max-height: calc(100vh - 80px) !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  scrollbar-width: none;
-  padding: 6px !important;
-}
-
-.canvas-wrap .excalidraw .App-toolbar .Stack {
-  width: 44px !important;
-  max-width: 44px !important;
-}
-
-.canvas-wrap .excalidraw .ToolIcon__icon,
-.canvas-wrap .excalidraw .ToolIcon_type_button {
-  width: 44px !important;
-  max-width: 44px !important;
-  height: 38px !important;
-  max-height: 38px !important;
-}
-
-.canvas-wrap .excalidraw .ToolIcon__keybinding {
   display: none !important;
 }
+
+/* 隐藏自带 zoom（左下，自建 ZoomIsland 取代） */
+.canvas-wrap .excalidraw [class*="zoom"] {
+  display: none !important;
+}
+
+/* ---------- 顶部中央工具 dock ---------- */
+.tooldock {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+}
+
+.t-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+.t-btn:hover { background: var(--btn-hover); color: var(--text); }
+.t-btn.on { background: var(--accent); color: #fff; box-shadow: 0 4px 14px #2563eb66; }
+
+.d-sep-v { width: 1px; height: 22px; background: var(--btn-border); margin: 0 5px; }
+
+/* ---------- 左下 zoom / 右下 hint ---------- */
+.zoomisland {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.zoomisland button {
+  width: 28px; height: 28px; border-radius: 8px; border: none;
+  background: var(--btn-bg); color: var(--text-dim); cursor: pointer;
+}
+.zoomisland button:hover { color: var(--text); }
+
+.hintisland {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 30;
+  padding: 8px 14px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+/* 联动开关激活态 */
+.motion .btn.fx-on { color: #7fd8a4; border-color: #2c5e42; }
 
 /* overlay：盖在画布之上，不拦截任何交互 */
 .flow-overlay {

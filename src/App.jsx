@@ -6,7 +6,7 @@ import { usePresenter } from './hooks/usePresenter.js'
 import { TEMPLATES, DEFAULT_TEMPLATE_ID } from './templates.js'
 import { saveSceneFile, parseSceneFile, persistAutosave, readAutosave, buildShareUrl, decodeShareHash } from './lib/storage.js'
 import { exportPNG, exportGIF, exportWebM } from './lib/exporter.js'
-import { EdgeContextBar, Toast, TemplateModal, NameBox, Exporting, Presenter } from './components/ui.jsx'
+import { EdgeContextBar, Toast, TemplateModal, NameBox, Exporting, Presenter, ToolDock, ZoomIsland, HintIsland } from './components/ui.jsx'
 import './styles.css'
 
 const CANVAS_BG = { dark: '#0e1117', light: '#f6f7fa' }
@@ -30,6 +30,11 @@ export default function App() {
   const [isViewer] = useState(() => window.location.hash.startsWith('#/v/'))
   const presenter = usePresenter({ apiRef })
   const presenting = presenter.total > 0 && presenter.cursor !== -1
+  const [activeTool, setActiveTool] = useState('selection')
+  const [effectsOn, setEffectsOn] = useState(true)  // 到达涟漪/徽标开关
+  const [zoom, setZoom] = useState(1)
+  const effectsRef = useRef(true)
+  effectsRef.current = effectsOn
 
   const playRef = useRef({ flowing: true, speed: 1 })
   playRef.current = { flowing, speed }
@@ -91,6 +96,10 @@ export default function App() {
 
   /* ---------- onChange：选中检测 + 自动保存 ---------- */
   const onChange = useCallback((elements, appState) => {
+    // 工具激活态 + zoom 跟踪
+    setActiveTool(appState.activeTool?.type ?? 'selection')
+    setZoom(appState.zoom?.value ?? 1)
+
     // 唯一选中且为绑定箭头 → 显示配置条
     const ids = Object.keys(appState.selectedElementIds ?? {})
     let arrow = null
@@ -158,17 +167,38 @@ export default function App() {
           (e) => e.type === 'arrow' && !e.isDeleted && (e.startBinding || e.start) && (e.endBinding || e.end),
         )
         // 演示态优先（present 非空时 overlay 只画白名单边+光圈+徽标）；
-        // 演示时编辑态全局流动暂停
+        // effectsOn=false 时到达涟漪与徽标停画（光圈保留）
         const present = presenter.snapshot()
+        const p = present ?? null
+        if (p && !effectsRef.current) p.badges = new Map()
         overlay.render({
           arrows, byId, state, time: t, speed: sp, onArrive: () => {},
-          present: present ?? null,
+          present: p, effectsOn: effectsRef.current,
         })
       }
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
+  }, [])
+
+  /* ---------- 工具 / 视口控制 ---------- */
+  const doTool = useCallback((type) => {
+    apiRef.current?.setActiveTool({ type })
+  }, [])
+
+  const doZoom = useCallback((delta) => {
+    const api = apiRef.current
+    if (!api) return
+    const z = Math.min(8, Math.max(0.1, (api.getAppState().zoom?.value ?? 1) + delta))
+    api.updateScene({ appState: { zoom: { value: z } } })
+  }, [])
+
+  const doFit = useCallback(() => {
+    const api = apiRef.current
+    if (!api) return
+    try { api.scrollToContent(api.getSceneElements(), { fitToViewport: true, viewportZoomFactor: 0.85 }) }
+    catch { /* ignore */ }
   }, [])
 
   /* ---------- 文件操作 ---------- */
@@ -223,6 +253,11 @@ export default function App() {
         <canvas ref={overlayRef} className="flow-overlay" />
       </div>
 
+      {/* 顶部中央：工具 dock（设计稿形态） */}
+      {!isViewer && (
+        <ToolDock activeTool={activeTool} onTool={doTool} onLibrary={() => setModal('template')} />
+      )}
+
       {/* 左上：brand（窄条：logo + 文件名） */}
       <div className="brand glass">
         <span className="logo">⚡Flow<em>Pulse</em></span>
@@ -259,11 +294,17 @@ export default function App() {
           <input type="range" min="0.5" max="3" step="0.5" value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))} />
         </div>
+        <button className={`btn${effectsOn ? ' fx-on' : ''}`} title={`到达联动：${effectsOn ? '开' : '关'}（涟漪与徽标）`}
+          onClick={() => setEffectsOn((v) => !v)}>{effectsOn ? '◉' : '○'}</button>
         <button className="btn" title="切换亮/暗主题"
           onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
       </div>
+
+      {/* 左下 zoom / 右下 hint（设计稿浮岛） */}
+      <ZoomIsland zoom={zoom} onZoom={doZoom} onFit={doFit} />
+      <HintIsland />
 
       {/* 演示播放器 */}
       {presenting && (
