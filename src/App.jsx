@@ -223,19 +223,29 @@ export default function App() {
         <canvas ref={overlayRef} className="flow-overlay" />
       </div>
 
-      {/* 左上：brand + 文件 + 文件操作（编辑模式） */}
+      {/* 左上：brand（窄条：logo + 文件名） */}
       <div className="brand glass">
         <span className="logo">⚡Flow<em>Pulse</em></span>
         {isViewer
           ? <span className="file-ro">只读分享页</span>
-          : <>
-              <NameBox name={name} onChange={setName} />
-              <div className="ctx-sep" />
-              <button className="b-act" onClick={() => setModal('template')}>模板</button>
-              <button className="b-act" onClick={() => document.getElementById('openFile')?.click()}>打开</button>
-              <button className="b-act" onClick={doSave}>保存</button>
-            </>}
+          : <NameBox name={name} onChange={setName} />}
       </div>
+
+      {/* 右侧：竖排功能 dock（编辑模式：文件/分享/演示/导出） */}
+      {!isViewer && (
+        <div className="dock glass">
+          <button className="d-btn" title="模板中心" onClick={() => setModal('template')}>◈</button>
+          <button className="d-btn" title="打开工程" onClick={() => document.getElementById('openFile')?.click()}>📂</button>
+          <button className="d-btn" title="保存工程" onClick={doSave}>💾</button>
+          <div className="d-sep" />
+          <button className="d-btn hero" title="复制分享链接" onClick={doShare}>✦</button>
+          <button className="d-btn demo" title="播放演示" onClick={() => presenter.play({ speed })}>▶</button>
+          <div className="d-sep" />
+          <button className="d-btn" title="导出 PNG" onClick={() => exportPNG({ api: apiRef.current, fileName: name }).then(() => showToast('PNG 已导出')).catch((e) => showToast(e.message))}>PNG</button>
+          <button className="d-btn" title="导出 GIF 动图" onClick={() => runExport('gif')}>GIF</button>
+          <button className="d-btn" title="导出 WebM 视频" onClick={() => runExport('webm')}>WVM</button>
+        </div>
+      )}
 
       {/* 右上：动态控制 + 主题 */}
       <div className="motion glass">
@@ -254,18 +264,6 @@ export default function App() {
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
       </div>
-
-      {/* 右上下方：导出/分享（编辑模式） */}
-      {!isViewer && (
-        <div className="exports glass">
-          <button className="b-act hero" onClick={doShare}>分享 ✦</button>
-          <button className="b-act play-demo" onClick={() => presenter.play({ speed })}>▶ 演示</button>
-          <div className="ctx-sep" />
-          <button className="b-act" onClick={() => exportPNG({ api: apiRef.current, fileName: name }).then(() => showToast('PNG 已导出')).catch((e) => showToast(e.message))}>PNG</button>
-          <button className="b-act" onClick={() => runExport('gif')}>GIF</button>
-          <button className="b-act" onClick={() => runExport('webm')}>WebM</button>
-        </div>
-      )}
 
       {/* 演示播放器 */}
       {presenting && (
