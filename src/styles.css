@@ -1,11 +1,37 @@
+/* ========== 主题变量（方案 A · 禅意浮岛） ========== */
+:root[data-theme='dark'] {
+  --bg: #0e1117;
+  --glass-bg: rgba(20, 25, 37, 0.82);
+  --glass-border: rgba(255,255,255,0.07);
+  --glass-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  --text: #dbe2f0;
+  --text-dim: #8b94ab;
+  --btn-bg: #161c29;
+  --btn-border: #2b3446;
+  --accent: #2563eb;
+}
+:root[data-theme='light'] {
+  --bg: #f6f7fa;
+  --glass-bg: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-shadow: 0 12px 36px rgba(30, 41, 66, 0.14);
+  --text: #1f2433;
+  --text-dim: #5b6474;
+  --btn-bg: #eef0f5;
+  --btn-border: #d8dce5;
+  --accent: #2563eb;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
 }
 
 body {
-  background: #0d1017;
+  background: var(--bg);
   font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  color: var(--text);
+  transition: background 0.25s;
 }
 
 .app {
@@ -34,70 +60,55 @@ body {
   pointer-events: none;
 }
 
-/* 控制面板 */
-.control-panel {
+/* ========== 右上浮岛：动态控制 + 主题 ========== */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: blur(14px);
+  box-shadow: var(--glass-shadow);
+}
+
+.motion {
   position: absolute;
-  top: 64px;
-  left: 16px;
+  top: 18px;
+  right: 18px;
   z-index: 30;
-  background: rgba(22, 27, 38, 0.92);
-  border: 1px solid #2b3446;
-  border-radius: 14px;
-  padding: 14px 16px;
-  color: #dbe2f0;
-  font-size: 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 235px;
-  backdrop-filter: blur(6px);
-}
-
-.control-panel h1 {
-  font-size: 15px;
-  margin: 0;
-}
-
-.control-panel h1 span {
-  font-size: 11px;
-  color: #5f6b83;
-  font-weight: 400;
-}
-
-.control-panel .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding: 8px 12px;
 }
 
-.control-panel button {
-  flex: 1;
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 7px 10px;
-  cursor: pointer;
+.motion .btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--text-dim);
   font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.control-panel button:hover { background: #3b82f6; }
-.control-panel button.paused { background: #3a4358; }
+.motion .btn:hover { color: var(--text); }
 
-.control-panel .speed {
-  min-width: 36px;
-  text-align: right;
-  color: #8b94ab;
+.motion .btn.play {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
-.control-panel input[type='range'] {
-  flex: 1;
-  accent-color: #2563eb;
+.motion .speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
-.control-panel .hint {
-  margin: 0;
-  font-size: 11px;
-  color: #5f6b83;
-  line-height: 1.7;
+.motion .speed input {
+  width: 70px;
+  accent-color: var(--accent);
 }

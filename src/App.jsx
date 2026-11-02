@@ -41,6 +41,8 @@ const initialElements = convertToExcalidrawElements([
     start: { id: 'order', type: 'arrow' }, end: { id: 'db', type: 'arrow' } },
 ])
 
+const CANVAS_BG = { dark: '#0e1117', light: '#f6f7fa' }
+
 export default function App() {
   const apiRef = useRef(null)
   const wrapRef = useRef(null)
@@ -49,15 +51,24 @@ export default function App() {
 
   const [flowing, setFlowing] = useState(true)
   const [speed, setSpeed] = useState(1)
+  const [theme, setTheme] = useState('dark')
   // 播放态走 ref 供 RAF 读取（控制条即时生效）
   const playRef = useRef({ flowing: true, speed: 1 })
   playRef.current = { flowing, speed }
 
+  /* 主题：html[data-theme] 驱动 CSS 变量 + Excalidraw theme/画布底联动 */
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    const api = apiRef.current
+    if (api) {
+      api.updateScene({ appState: { viewBackgroundColor: CANVAS_BG[theme] } })
+    }
+  }, [theme])
+
   const onReady = useCallback((api) => {
     apiRef.current = api
     if (import.meta.env.DEV) window.__exApi = api
-    // 0.18 无限画布：元素渲染在 ~16M offset 区域，初始 scroll=0 对着空白窗口，
-    // 挂载稳定后把视口对到内容（过早调用会触发未挂载 setState 警告）
+    // 0.18 无限画布：挂载稳定后把视口对到内容
     setTimeout(() => {
       try {
         api.scrollToContent(api.getSceneElements(), {
@@ -103,18 +114,6 @@ export default function App() {
         const arrows = elements.filter(
           (e) => e.type === 'arrow' && !e.isDeleted && (e.start || e.startBinding) && (e.end || e.endBinding),
         )
-        if (import.meta.env.DEV && !window.__flowDebug) {
-          window.__flowDebug = {
-            arrows: arrows.length,
-            total: elements.length,
-            sample: arrows[0]
-              ? { x: arrows[0].x, y: arrows[0].y, pts: arrows[0].points?.length, color: arrows[0].strokeColor }
-              : null,
-            zoom: state.zoom?.value,
-            scrollX: state.scrollX,
-            overlayW: overlayRef.current?.clientWidth,
-          }
-        }
         overlay.render({ arrows, byId, state, time: t, speed: sp, onArrive: () => {} })
       }
       raf = requestAnimationFrame(loop)
@@ -128,32 +127,40 @@ export default function App() {
       <div className="canvas-wrap" ref={wrapRef}>
         <Excalidraw
           excalidrawAPI={onReady}
-          theme="dark"
+          theme={theme}
+          gridModeEnabled
           initialData={{
             elements: initialElements,
-            appState: { viewBackgroundColor: '#0d1017' },
+            appState: { viewBackgroundColor: CANVAS_BG.dark, gridModeEnabled: true },
           }}
         />
         <canvas ref={overlayRef} className="flow-overlay" />
       </div>
 
-      <div className="control-panel">
-        <h1>⚡ FlowPulse <span>· Excalidraw 底座</span></h1>
-        <div className="row">
-          <button className={flowing ? '' : 'paused'} onClick={() => setFlowing((v) => !v)}>
-            {flowing ? '⏸ 暂停流动' : '▶ 恢复流动'}
-          </button>
-          <span className="speed">{speed.toFixed(1)}x</span>
-        </div>
-        <div className="row">
-          <span>速度</span>
+      {/* 右上浮岛：动态控制 + 主题切换（方案 A · 禅意浮岛） */}
+      <div className="motion glass">
+        <button
+          className={`btn${flowing ? ' play' : ''}`}
+          title={flowing ? '暂停流动' : '恢复流动'}
+          onClick={() => setFlowing((v) => !v)}
+        >
+          {flowing ? '⏸' : '▶'}
+        </button>
+        <div className="speed">
+          {speed.toFixed(1)}x
           <input
             type="range" min="0.5" max="3" step="0.5"
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
           />
         </div>
-        <p className="hint">编辑器为 Excalidraw 原生：拖拽 / 改大小 / 双击改字 / 撤销重做；数据流动画为外挂 overlay 层</p>
+        <button
+          className="btn"
+          title="切换亮/暗主题"
+          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
       </div>
     </div>
   )
