@@ -98,3 +98,17 @@ export function Exporting({ progress, label }) {
     </div>
   )
 }
+
+/** 演示播放器（底部中央） */
+export function Presenter({ cursor, total, playing, onReplay, onStop }) {
+  return (
+    <div className="presenter glass">
+      <button className="p-btn" onClick={onReplay} title="重播">↺</button>
+      <div className="p-prog">
+        <i style={{ width: `${total ? (cursor / total) * 100 : 0}%` }} />
+      </div>
+      <span className="p-label">{Math.max(cursor, 0)} / {total} · {playing ? '演示中' : '已结束'}</span>
+      <button className="p-btn danger" onClick={onStop} title="退出演示 (Esc)">✕</button>
+    </div>
+  )
+}

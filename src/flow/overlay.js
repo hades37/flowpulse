@@ -37,13 +37,23 @@ export function createOverlay(canvas) {
    * @param opts.time     播放时钟 ms
    * @param opts.speed    全局速度倍率
    * @param opts.onArrive(edge, targetElement) 到达回调
+   * @param opts.present  演示态（可选）：
+   *   activeIds: Set|null —— 非空时仅这些边流动（null=全部，编辑态）
+   *   glows: Map<元素id, color> —— 持续高亮光圈（演示步骤当前节点）
+   *   badges: Map<元素id, {kind:'active'|'success', color}> —— 状态徽标
    */
-  function render({ arrows, byId, state, time, speed, onArrive }) {
+  function render({ arrows, byId, state, time, speed, onArrive, present }) {
     const w = canvas.clientWidth
     const h = canvas.clientHeight
     ctx.clearRect(0, 0, w, h)
 
+    const activeIds = present?.activeIds ?? null
+    const glows = present?.glows
+    const badges = present?.badges
+
     for (const edge of arrows) {
+      // 演示态：白名单外的边不流动
+      if (activeIds && !activeIds.has(edge.id)) { edge.__prev = null; continue }
       const pts = edge.points
       if (!pts || pts.length < 2) continue
       const a = { x: edge.x + pts[0][0], y: edge.y + pts[0][1] }
@@ -100,6 +110,59 @@ export function createOverlay(canvas) {
       ctx.stroke()
     }
     ctx.globalAlpha = 1
+
+    // 演示态：节点持续高亮光圈（bbox 外扩呼吸圈）
+    if (glows) {
+      const breath = 1 + Math.sin(now / 300) * 0.02
+      for (const [id, color] of glows) {
+        const el = byId.get(id)
+        if (!el) continue
+        const tl = toViewport({ x: el.x, y: el.y }, state)
+        const br = toViewport({ x: el.x + el.width, y: el.y + el.height }, state)
+        const pad = 6
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2.5
+        ctx.globalAlpha = 0.9
+        roundRect(ctx, tl.x - pad, tl.y - pad, (br.x - tl.x) + pad * 2, (br.y - tl.y) + pad * 2, 10, breath)
+        ctx.stroke()
+        ctx.globalAlpha = 0.12
+        ctx.fillStyle = color
+        roundRect(ctx, tl.x - pad, tl.y - pad, (br.x - tl.x) + pad * 2, (br.y - tl.y) + pad * 2, 10, breath)
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
+    }
+
+    // 演示态：状态徽标（● 进行中 / ✓ 成功），画在元素右上角
+    if (badges) {
+      for (const [id, b] of badges) {
+        const el = byId.get(id)
+        if (!el) continue
+        const tr = toViewport({ x: el.x + el.width, y: el.y }, state)
+        const r = 9
+        const cx = tr.x + 4
+        const cy = tr.y - 4
+        ctx.fillStyle = b.color
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill()
+        ctx.fillStyle = '#0d1017'
+        ctx.font = 'bold 11px system-ui'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(b.kind === 'success' ? '✓' : '●', cx, cy + 0.5)
+      }
+    }
+  }
+
+  function roundRect(ctx, x, y, w, h, r, scale = 1) {
+    const cx = x + w / 2, cy = y + h / 2
+    const sw = w * scale / 2, sh = h * scale / 2
+    ctx.beginPath()
+    ctx.moveTo(cx - sw + r, cy - sh)
+    ctx.arcTo(cx + sw, cy - sh, cx + sw, cy + sh, r)
+    ctx.arcTo(cx + sw, cy + sh, cx - sw, cy + sh, r)
+    ctx.arcTo(cx - sw, cy + sh, cx - sw, cy - sh, r)
+    ctx.arcTo(cx - sw, cy - sh, cx + sw, cy - sh, r)
+    ctx.closePath()
   }
 
   return { resize, render }

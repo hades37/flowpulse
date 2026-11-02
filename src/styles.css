@@ -156,6 +156,8 @@ body {
 }
 .b-act:hover { color: var(--text); border-color: #2e4a77; }
 .b-act.hero { background: linear-gradient(90deg, #2563eb, #7c5cff); border: none; color: #fff; }
+.b-act.play-demo { background: #1d3a2a; border-color: #2c5e42; color: #7fd8a4; }
+.b-act.play-demo:hover { background: #24503a; }
 
 /* ========== 右上第二浮岛：导出/分享 ========== */
 .exports {
@@ -256,3 +258,30 @@ body {
 .tpl-name { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .tpl-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; min-height: 36px; }
 .tpl-meta { font-size: 11px; color: var(--text-dim); opacity: 0.7; margin-top: 6px; }
+
+/* ========== 演示播放器 ========== */
+.presenter {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 999px;
+}
+
+.p-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--btn-border); background: var(--btn-bg);
+  color: var(--text-dim); font-size: 13px; cursor: pointer;
+}
+.p-btn:hover { color: var(--text); }
+.p-btn.danger:hover { color: #ff9d9d; border-color: #52242c; }
+
+.p-prog { width: 140px; height: 4px; border-radius: 2px; background: var(--btn-border); overflow: hidden; }
+.p-prog i { display: block; height: 100%; background: linear-gradient(90deg, #6ea8ff, #b28cff); transition: width 0.3s; }
+
+.p-label { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }

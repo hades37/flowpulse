@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Excalidraw } from '@excalidraw/excalidraw'
 
 import { createOverlay } from './flow/overlay.js'
+import { usePresenter } from './hooks/usePresenter.js'
 import { TEMPLATES, DEFAULT_TEMPLATE_ID } from './templates.js'
 import { saveSceneFile, parseSceneFile, persistAutosave, readAutosave, buildShareUrl, decodeShareHash } from './lib/storage.js'
 import { exportPNG, exportGIF, exportWebM } from './lib/exporter.js'
-import { EdgeContextBar, Toast, TemplateModal, NameBox, Exporting } from './components/ui.jsx'
+import { EdgeContextBar, Toast, TemplateModal, NameBox, Exporting, Presenter } from './components/ui.jsx'
 import './styles.css'
 
 const CANVAS_BG = { dark: '#0e1117', light: '#f6f7fa' }
@@ -27,9 +28,18 @@ export default function App() {
   const [selArrow, setSelArrow] = useState(null)    // 选中的绑定箭头元素
   const [exporting, setExporting] = useState(null)  // { progress, label }
   const [isViewer] = useState(() => window.location.hash.startsWith('#/v/'))
+  const presenter = usePresenter({ apiRef })
+  const presenting = presenter.total > 0 && presenter.cursor !== -1
 
   const playRef = useRef({ flowing: true, speed: 1 })
   playRef.current = { flowing, speed }
+
+  /* Esc 退出演示 */
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && presenting) presenter.stop() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [presenting, presenter])
 
   const showToast = useCallback((m) => {
     setToast(m)
@@ -147,7 +157,13 @@ export default function App() {
         const arrows = elements.filter(
           (e) => e.type === 'arrow' && !e.isDeleted && (e.startBinding || e.start) && (e.endBinding || e.end),
         )
-        overlay.render({ arrows, byId, state, time: t, speed: sp, onArrive: () => {} })
+        // 演示态优先（present 非空时 overlay 只画白名单边+光圈+徽标）；
+        // 演示时编辑态全局流动暂停
+        const present = presenter.snapshot()
+        overlay.render({
+          arrows, byId, state, time: t, speed: sp, onArrive: () => {},
+          present: present ?? null,
+        })
       }
       raf = requestAnimationFrame(loop)
     }
@@ -223,6 +239,10 @@ export default function App() {
 
       {/* 右上：动态控制 + 主题 */}
       <div className="motion glass">
+        {isViewer && (
+          <button className="btn play" title="播放演示"
+            onClick={() => presenter.play({ speed })}>▶</button>
+        )}
         <button className={`btn${flowing ? ' play' : ''}`} title={flowing ? '暂停流动' : '恢复流动'}
           onClick={() => setFlowing((v) => !v)}>{flowing ? '⏸' : '▶'}</button>
         <div className="speed">{speed.toFixed(1)}x
@@ -239,11 +259,21 @@ export default function App() {
       {!isViewer && (
         <div className="exports glass">
           <button className="b-act hero" onClick={doShare}>分享 ✦</button>
+          <button className="b-act play-demo" onClick={() => presenter.play({ speed })}>▶ 演示</button>
           <div className="ctx-sep" />
           <button className="b-act" onClick={() => exportPNG({ api: apiRef.current, fileName: name }).then(() => showToast('PNG 已导出')).catch((e) => showToast(e.message))}>PNG</button>
           <button className="b-act" onClick={() => runExport('gif')}>GIF</button>
           <button className="b-act" onClick={() => runExport('webm')}>WebM</button>
         </div>
+      )}
+
+      {/* 演示播放器 */}
+      {presenting && (
+        <Presenter
+          cursor={presenter.cursor} total={presenter.total} playing={presenter.playing}
+          onReplay={() => presenter.play({ speed })}
+          onStop={presenter.stop}
+        />
       )}
 
       {/* 底部中央：选中箭头配置条 */}
