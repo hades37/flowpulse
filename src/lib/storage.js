@@ -86,7 +86,7 @@ function pickName(data) {
  * @param {string} [name] 图形名称，默认「未命名图」
  * @returns {string} 实际下载的文件名
  */
-export function saveSceneFile(elements, name = DEFAULT_NAME) {
+export function saveSceneFile(elements, name = DEFAULT_NAME, flows) {
   const safeName = sanitizeFileName(name)
   // 统一的工程文件 payload 结构
   const payload = {
@@ -94,6 +94,7 @@ export function saveSceneFile(elements, name = DEFAULT_NAME) {
     name: safeName,
     savedAt: new Date().toISOString(),
     elements,
+    ...(Array.isArray(flows) ? { flows } : {}),
   }
   const json = JSON.stringify(payload, null, 2)
   const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
@@ -124,7 +125,7 @@ export function parseSceneFile(text) {
   if (!isValidElements(data.elements)) {
     throw new Error('文件内容不完整：缺少有效的 elements 元素数组')
   }
-  return { elements: data.elements, name: pickName(data) }
+  return { elements: data.elements, name: pickName(data), ...(Array.isArray(data.flows) ? { flows: data.flows } : {}) }
 }
 
 /* ================================================================
@@ -143,13 +144,14 @@ export const KEY_NAME = 'flowpulse-ex.name'
  * @param {Array<object>} elements 场景元素数组
  * @param {string} name 图形名称
  */
-export function persistAutosave(elements, name) {
+export function persistAutosave(elements, name, flows) {
   try {
     const payload = {
       format: FILE_FORMAT,
       name: pickName({ name }),
       savedAt: new Date().toISOString(),
       elements,
+      ...(Array.isArray(flows) ? { flows } : {}),
     }
     localStorage.setItem(KEY_AUTOSAVE, JSON.stringify(payload))
     localStorage.setItem(KEY_NAME, payload.name)
@@ -183,7 +185,7 @@ export function readAutosave() {
       typeof data.name === 'string' && data.name.trim()
         ? data.name
         : (fallbackName && fallbackName.trim()) || DEFAULT_NAME
-    return { elements: data.elements, name }
+    return { elements: data.elements, name, ...(Array.isArray(data.flows) ? { flows: data.flows } : {}) }
   } catch {
     // 读取/解析任何环节出错都视为没有可用存档
     return null
@@ -202,9 +204,9 @@ export function readAutosave() {
  * @param {string} [name] 图形名称，默认「未命名图」
  * @returns {string} 可直接复制给别人的完整 URL
  */
-export function buildShareUrl(elements, name = DEFAULT_NAME) {
+export function buildShareUrl(elements, name = DEFAULT_NAME, flows) {
   // 分享 payload 同样携带 format 字段，decode 时校验
-  const payload = { format: FILE_FORMAT, name: pickName({ name }), elements }
+  const payload = { format: FILE_FORMAT, name: pickName({ name }), elements, ...(Array.isArray(flows) ? { flows } : {}) }
   const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload))
   const { origin, pathname } = window.location
   return `${origin}${pathname}${SHARE_PREFIX}${compressed}`
@@ -235,7 +237,7 @@ export function decodeShareHash(hash) {
     ) {
       return null
     }
-    return { elements: data.elements, name: pickName(data) }
+    return { elements: data.elements, name: pickName(data), ...(Array.isArray(data.flows) ? { flows: data.flows } : {}) }
   } catch {
     // 任何解析异常都按「无效分享链接」处理，交由调用方走正常初始化
     return null

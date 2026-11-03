@@ -6,16 +6,7 @@
  *   2. exportGIF   —— GIF 动图（exportToBlob 底图 + overlay 逐帧合成，gifenc 编码）
  *   3. exportWebM  —— WebM 视频（MediaRecorder 录制 canvas.captureStream）
  *
- * 宿主环境说明：Excalidraw 的两块画布（canvas.static / canvas.interactive）
- * 是超大尺寸的“无限画布”，可见窗口只是顶部一部分；我们自己的 overlay 画布
- * （.flow-overlay）与可见视口同尺寸，实时绘制数据包流动动画。动画导出时
- * 先用 exportToBlob 生成一张与 overlay 视口同尺寸的静态底图，再逐帧把
- * overlay 的实时画面叠加上去合成。
- *
- * 注意：exportToBlob 内部会按元素包围盒重新排版（传入的 scrollX/scrollY
- * 会被覆盖），因此底图通过 getDimensions 返回视口尺寸并附带 scale，把整个
- * 场景等比缩放进该尺寸（多余部分由 viewBackgroundColor 背景填充），保证
- * 底图内容完整且与 overlay 同尺寸叠加。
+ * 动画导出使用当前视口的静态画布和动画画布进行合成。
  */
 
 import { exportToBlob } from '@excalidraw/excalidraw';
@@ -54,61 +45,16 @@ function getOverlaySize(overlayCanvas) {
   return { width: Math.max(1, Math.round(w)), height: Math.max(1, Math.round(h)) };
 }
 
-/** Blob -> dataURL -> HTMLImageElement：把底图变成可直接 drawImage 的位图 */
-async function blobToImage(blob) {
-  const dataUrl = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('无法读取底图数据'));
-    reader.readAsDataURL(blob);
-  });
-  const img = new Image();
-  await new Promise((resolve, reject) => {
-    img.onload = resolve;
-    img.onerror = () => reject(new Error('底图图片解码失败'));
-    img.src = dataUrl;
-  });
-  return img;
-}
-
-/**
- * 生成「视口底图」（GIF / WebM 共用，只导出一次）：
- *  - 帧尺寸 = overlay 画布的 clientWidth/clientHeight；
- *  - 只用 elements（过滤 isDeleted）；
- *  - appState 直接沿用 api.getAppState()（含 viewBackgroundColor / scrollX /
- *    scrollY / zoom，即导出瞬间的视口状态）；
- *  - getDimensions 返回该视口尺寸，并附 scale 使整个场景等比适配该尺寸。
- * 失败时抛出带上下文的中文错误（label 为 'GIF' / 'WebM'）。
- * @returns {Promise<HTMLImageElement>}
- */
+/** Capture the visible canvas so the base and animation share coordinates. */
 async function exportViewportBaseImage(api, width, height, label) {
-  const elements = (api.getSceneElements() || []).filter((el) => el && !el.isDeleted);
-  let blob;
-  try {
-    blob = await exportToBlob({
-      elements,
-      appState: { ...api.getAppState(), exportBackground: true },
-      files: null,
-      exportPadding: 0,
-      mimeType: 'image/png',
-      getDimensions: (contentW, contentH) => {
-        // 等比缩放：内容完整地铺进视口尺寸（宽高比不同则留白，由背景色填充）
-        let scale = Math.min(
-          width / Math.max(contentW, 1),
-          height / Math.max(contentH, 1),
-        );
-        if (!Number.isFinite(scale) || scale <= 0) scale = 1;
-        return { width, height, scale };
-      },
-    });
-  } catch (err) {
-    const reason = err && err.message ? err.message : '未知错误';
-    throw new Error(`${label}底图导出失败：${reason}`);
-  }
-  if (!blob || blob.size === 0) {
-    throw new Error(`${label}底图导出失败：得到了空图片，请确认画布上有内容后重试`);
-  }
-  return blobToImage(blob);
+  // Capture the same viewport transform as the animation overlay.
+  const source = document.querySelector('.canvas-wrap canvas.excalidraw__canvas.static');
+  if (!source) throw new Error(`${label}底图导出失败：找不到画布`);
+  const snapshot = document.createElement('canvas');
+  snapshot.width = width;
+  snapshot.height = height;
+  snapshot.getContext('2d').drawImage(source, 0, 0, width, height);
+  return snapshot;
 }
 
 /* ------------------------------------------------------------------ */

@@ -9,6 +9,7 @@
   --btn-bg: #161c29;
   --btn-border: #2b3446;
   --accent: #2563eb;
+  --grid-line: rgba(150, 170, 200, .24);
 }
 :root[data-theme='light'] {
   --bg: #f6f7fa;
@@ -20,6 +21,7 @@
   --btn-bg: #eef0f5;
   --btn-border: #d8dce5;
   --accent: #2563eb;
+  --grid-line: rgba(65, 80, 105, .20);
 }
 
 html, body, #root {
@@ -52,6 +54,16 @@ body {
   width: 100% !important;
 }
 
+/* The scene already uses theme-specific colors; do not invert it a second time. */
+.canvas-wrap .excalidraw.theme--dark .excalidraw__canvas {
+  filter: none;
+}
+
+.flow-overlay {
+  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 /* ---------- 压缩 Excalidraw 左侧工具岛 → 完全隐藏（自建顶部 dock 取代） ---------- */
 .canvas-wrap .excalidraw {
   --default-icon-size: 18px;
@@ -64,6 +76,11 @@ body {
 
 /* 隐藏自带 zoom（左下，自建 ZoomIsland 取代） */
 .canvas-wrap .excalidraw [class*="zoom"] {
+  display: none !important;
+}
+
+/* 隐藏自带形状属性面板（左列，底部上下文条取代） */
+.canvas-wrap .excalidraw .selected-shape-actions {
   display: none !important;
 }
 
@@ -294,14 +311,21 @@ body {
   gap: 11px;
   padding: 9px 14px;
   border-radius: 14px;
+  max-width: calc(100vw - 36px);
+  box-sizing: border-box;
+  overflow-x: auto;
 }
 
 .ctx-name { font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .ctx-sep { width: 1px; height: 20px; background: var(--btn-border); }
 
 .swatches { display: flex; gap: 6px; }
-.swatches i { width: 18px; height: 18px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
-.swatches i.on { border-color: #fff; outline: 2px solid var(--accent); outline-offset: 1px; }
+.swatches button { width: 18px; height: 18px; padding: 0; flex: none; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+.swatches button.on { border-color: #fff; outline: 2px solid var(--accent); outline-offset: 1px; }
+.color-picker { display: flex; align-items: center; gap: 4px; flex: none; color: var(--text-dim); font-size: 11px; }
+.color-picker-label { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.color-picker input[type='color'] { width: 25px; height: 25px; padding: 0; border: 1px solid var(--btn-border); border-radius: 6px; background: var(--btn-bg); cursor: pointer; }
+.color-hex { width: 68px; padding: 5px; color: var(--text); background: var(--btn-bg); border: 1px solid var(--btn-border); border-radius: 6px; font-size: 11px; }
 
 .stepper { display: flex; gap: 4px; }
 .stepper button {
@@ -317,6 +341,8 @@ body {
   border-radius: 8px; font-size: 12px; padding: 6px 9px; cursor: pointer;
 }
 .ctx-act.danger:hover { color: #ff9d9d; border-color: #52242c; }
+.ctx-act.active { color: #7fd8a4; border-color: #2c5e42; }
+.ctx-act { white-space: nowrap; }
 
 /* ========== Toast / 导出进度 ========== */
 .toast {
@@ -356,6 +382,8 @@ body {
 }
 
 .modal { width: calc(100% - 48px); padding: 16px 18px; border-radius: 16px; }
+.new-scene-hint { color: var(--text-dim); font-size: 13px; line-height: 1.7; }
+.new-scene-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
 .modal-close { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 4px 8px; border-radius: 6px; }
 .modal-close:hover { background: var(--btn-hover); color: var(--text); }
@@ -369,6 +397,19 @@ body {
 .tpl-name { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .tpl-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; min-height: 36px; }
 .tpl-meta { font-size: 11px; color: var(--text-dim); opacity: 0.7; margin-top: 6px; }
+
+.flow-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; color: var(--text-dim); font-size: 13px; }
+.flow-toolbar label { display: flex; align-items: center; gap: 8px; }
+.flow-toolbar select, .flow-toolbar input, .flow-step select, .flow-step input { color: var(--text); background: var(--btn-bg); border: 1px solid var(--btn-border); border-radius: 7px; padding: 7px; min-width: 0; }
+.flow-steps { display: grid; gap: 8px; max-height: 48vh; overflow-y: auto; margin-bottom: 12px; }
+.flow-step { display: flex; align-items: center; gap: 6px; color: var(--text-dim); }
+.flow-step select, .flow-step input { flex: 1; }
+.flow-step button:disabled, .p-btn:disabled { opacity: .35; cursor: default; }
+.flow-hint { color: var(--text-dim); font-size: 13px; }
+.flow-error { color: #ff9d9d; font-size: 13px; }
+.presenter { max-width: calc(100vw - 32px); }
+.presenter .p-label { max-width: 35vw; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) { .flow-step { flex-wrap: wrap; } .flow-step select, .flow-step input { flex: 1 1 40%; } .p-prog { display: none; } }
 
 /* ========== 演示播放器 ========== */
 .presenter {
@@ -396,3 +437,22 @@ body {
 .p-prog i { display: block; height: 100%; background: linear-gradient(90deg, #6ea8ff, #b28cff); transition: width 0.3s; }
 
 .p-label { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .tooldock { top: 80px; }
+  .dock { top: 145px; }
+  .hintisland { display: none; }
+  .ctx { max-width: calc(100vw - 24px); overflow-x: auto; }
+}
+
+@media (max-width: 560px) {
+  .brand { left: 8px; top: 8px; }
+  .brand .file-name { width: 72px; }
+  .motion { right: 8px; top: 8px; gap: 4px; padding: 6px; }
+  .motion .speed input { width: 45px; }
+  .tooldock { top: 65px; gap: 0; padding: 5px; }
+  .t-btn { width: 34px; }
+  .dock { right: 8px; top: 124px; }
+  .tpl-grid { grid-template-columns: 1fr; }
+  .zoomisland { left: 8px; bottom: 8px; }
+}

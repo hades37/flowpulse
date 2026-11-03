@@ -1,85 +1,78 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-/**
- * 演示模式驱动器（excalidraw 分支版）：
- * 一键按图生成脚本（每条绑定箭头 = 一步：单边流动 → 目标高亮+成功徽标），
- * 串行自动播放；glows/badges 持续叠加到结束；重播/前进/退出恢复。
- *
- * present 状态结构（传入 overlay.render）：
- *   { activeIds: Set|null, glows: Map, badges: Map }
- */
+import { makeDefaultSteps, resolveSteps } from '../flow/scenarios.js'
 
 export function usePresenter({ apiRef }) {
   const [playing, setPlaying] = useState(false)
   const [cursor, setCursor] = useState(-1)
   const [total, setTotal] = useState(0)
-  const presentRef = useRef(null) // 最新演示态（RAF 每帧读）
+  const [description, setDescription] = useState('')
+  const [flowName, setFlowName] = useState('')
+  const presentRef = useRef(null)
   const timerRef = useRef(null)
-  const api = () => apiRef.current
-
-  const clearTimer = () => { clearTimeout(timerRef.current); timerRef.current = null }
-
-  /** 演示态快照（供 overlay） */
-  const snapshot = () => presentRef.current
-
+  const stepsRef = useRef([])
+  const speedRef = useRef(1)
+  const indexRef = useRef(-1)
+  const playingRef = useRef(false)
+  const clear = () => { clearTimeout(timerRef.current); timerRef.current = null }
+  useEffect(() => () => clearTimeout(timerRef.current), [])
   const stop = useCallback(() => {
-    clearTimer()
-    presentRef.current = null
-    setPlaying(false)
-    setCursor(-1)
+    clear(); playingRef.current = false; presentRef.current = null
+    setPlaying(false); setCursor(-1); indexRef.current = -1
   }, [])
-
-  /**
-   * 播放：从头自动推进
-   * @param opts { speed, onDone }
-   */
-  const play = useCallback((opts = {}) => {
-    clearTimer()
-    const a = api()
-    if (!a) return
-    const arrows = a.getSceneElements().filter(
-      (e) => e.type === 'arrow' && !e.isDeleted && (e.startBinding || e.start) && (e.endBinding || e.end),
-    )
-    if (arrows.length === 0) return
-    const byId = new Map(a.getSceneElements().map((e) => [e.id, e]))
-    setTotal(arrows.length)
-    setPlaying(true)
-
-    const glows = new Map()
-    const badges = new Map()
-    let i = 0
-
-    const step = () => {
-      if (i >= arrows.length) {
-        presentRef.current = { activeIds: null, glows, badges }
-        setCursor(arrows.length)
-        setPlaying(false)
-        opts.onDone?.()
-        return
-      }
-      const edge = arrows[i]
-      const fp = edge.customData?.flowpulse ?? {}
-      const durMs = (fp.durationMs ?? 2200) / (opts.speed ?? 1)
-      const color = edge.strokeColor || '#6ea8ff'
-      const srcId = edge.startBinding?.elementId ?? edge.start?.id
-      const dstId = edge.endBinding?.elementId ?? edge.end?.id
-
-      // 步骤开始：只激活这条边 + 高亮源
-      glows.set(srcId, color)
-      badges.set(srcId, { kind: 'active', color })
-      presentRef.current = { activeIds: new Set([edge.id]), glows, badges }
-      setCursor(i + 1)
-
-      // 步骤结束：目标高亮 + 成功徽标，短暂间隔进下一步
-      timerRef.current = setTimeout(() => {
-        glows.set(dstId, color)
-        badges.set(dstId, { kind: 'success', color })
-        i += 1
-        timerRef.current = setTimeout(step, 420)
-      }, durMs)
+  const show = useCallback((index, elapsed = 0) => {
+    const steps = stepsRef.current
+    if (!steps.length) return
+    index = Math.max(0, Math.min(index, steps.length - 1))
+    indexRef.current = index
+    const glows = new Map(), badges = new Map()
+    for (let i = 0; i <= index; i++) {
+      const edge = steps[i].edge, color = edge.strokeColor || '#6ea8ff'
+      const source = edge.startBinding?.elementId ?? edge.start?.id
+      const target = edge.endBinding?.elementId ?? edge.end?.id
+      if (i < index) { glows.set(target, color); badges.set(target, { kind: 'success', color }) }
+      else { glows.set(source, color); badges.set(source, { kind: 'active', color }) }
     }
-    step()
+    presentRef.current = { activeIds: new Set([steps[index].edge.id]), glows, badges, motionStart: performance.now() - elapsed / speedRef.current, motionElapsed: elapsed, motionSpeed: speedRef.current, motionPaused: !playingRef.current }
+    setCursor(index + 1); setDescription(steps[index].description || '')
+    clear()
+    if (playingRef.current) {
+      const edge = steps[index].edge
+      const delay = Math.max(0, ((edge.customData?.flowpulse?.durationMs ?? 2200) - elapsed) / speedRef.current + 420)
+      timerRef.current = setTimeout(() => {
+        if (indexRef.current < stepsRef.current.length - 1) show(indexRef.current + 1)
+        else {
+          const edge = stepsRef.current[indexRef.current].edge
+          const target = edge.endBinding?.elementId ?? edge.end?.id
+          const color = edge.strokeColor || '#6ea8ff'
+          glows.set(target, color); badges.set(target, { kind: 'success', color })
+          presentRef.current = { ...presentRef.current, activeIds: new Set(), glows, badges, motionPaused: true }
+          playingRef.current = false; setPlaying(false)
+        }
+      }, delay)
+    }
   }, [])
-
-  return { playing, cursor, total, play, stop, snapshot }
+  const play = useCallback(({ speed = 1, flow } = {}) => {
+    const elements = apiRef.current?.getSceneElements() ?? []
+    const resolved = resolveSteps(flow ? flow.steps : makeDefaultSteps(elements), elements)
+    if (resolved.missing.length) return { error: `流程中有 ${resolved.missing.length} 条连线已删除或解除绑定，请先修复流程` }
+    if (!resolved.steps.length) return { error: '没有可播放的连线步骤' }
+    clear(); stepsRef.current = resolved.steps; speedRef.current = speed
+    playingRef.current = true; setPlaying(true); setTotal(resolved.steps.length)
+    setFlowName(flow?.name || '自动演示'); show(0)
+    return { ok: true }
+  }, [apiRef, show])
+  const move = useCallback((delta) => { playingRef.current = false; setPlaying(false); show(indexRef.current + delta) }, [show])
+  const toggle = useCallback(() => {
+    const p = presentRef.current
+    if (!p) return
+    if (playingRef.current) {
+      p.motionElapsed = (performance.now() - p.motionStart) * p.motionSpeed
+      p.motionPaused = true; playingRef.current = false; clear(); setPlaying(false)
+    } else {
+      // Resume the remaining time and preserve particle position.
+      playingRef.current = true; setPlaying(true)
+      show(indexRef.current, p.motionElapsed)
+    }
+  }, [show])
+  return { playing, cursor, total, description, flowName, play, stop, move, toggle, snapshot: () => presentRef.current }
 }

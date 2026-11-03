@@ -1,4 +1,5 @@
-import { progresses, lerpPoint } from './kinematics.js'
+import { progresses, arrowPath, pointAlongPath } from './kinematics.js'
+import { animationEnabled } from './settings.js'
 
 /**
  * overlay 渲染器：叠在 Excalidraw 画布之上的透明 canvas。
@@ -14,6 +15,7 @@ const TAU = Math.PI * 2
 export function createOverlay(canvas) {
   const ctx = canvas.getContext('2d')
   let ripples = [] // { cx, cy, color, born }
+  const previous = new Map()
 
   function resize(w, h, dpr = window.devicePixelRatio || 1) {
     canvas.width = w * dpr
@@ -54,36 +56,35 @@ export function createOverlay(canvas) {
 
     for (const edge of arrows) {
       // 演示态：白名单外的边不流动
-      if (activeIds && !activeIds.has(edge.id)) { edge.__prev = null; continue }
+      if (!animationEnabled(edge) || (activeIds && !activeIds.has(edge.id))) { previous.delete(edge.id); continue }
       const pts = edge.points
       if (!pts || pts.length < 2) continue
-      const a = { x: edge.x + pts[0][0], y: edge.y + pts[0][1] }
-      const b = { x: edge.x + pts[pts.length - 1][0], y: edge.y + pts[pts.length - 1][1] }
+      const path = arrowPath(edge)
       const color = edge.strokeColor || '#6ea8ff'
 
       const fp = edge.customData?.flowpulse ?? {}
       const n = Math.max(1, fp.packets ?? 2)
-      const dur = (fp.durationMs ?? 2200) / (speed ?? 1)
+      const dur = fp.durationMs ?? 2200
 
       const list = progresses(time, n, dur)
-      edge.__prev = edge.__prev ?? list
+      const prev = previous.get(edge.id) ?? list
 
       for (let i = 0; i < n; i++) {
         // 到达检测：帧间 progress 回绕即到达（触发目标涟漪）
-        if (edge.__prev[i] > list[i] && onArrive) {
+        if (prev[i] > list[i] && onArrive) {
           const targetId = edge.end?.id ?? edge.endBinding?.elementId
           const target = targetId ? byId.get(targetId) : null
-          if (target && effectsOn) {
+          if (target && effectsOn && animationEnabled(target)) {
             const c = toViewport(
               { x: target.x + target.width / 2, y: target.y + target.height / 2 },
               state,
             )
-            ripples.push({ cx: c.x, cy: c.y, color, born: performance.now() })
+            ripples.push({ cx: c.x, cy: c.y, color, targetId, born: performance.now() })
           }
         }
 
         const p = list[i]
-        const sp = toViewport(lerpPoint(a, b, p), state)
+        const sp = toViewport(pointAlongPath(path, p), state)
         // 光晕 + 实心光点
         ctx.globalAlpha = 0.22
         ctx.fillStyle = color
@@ -95,12 +96,12 @@ export function createOverlay(canvas) {
         ctx.arc(sp.x, sp.y, 3.8, 0, TAU)
         ctx.fill()
       }
-      edge.__prev = list
+      previous.set(edge.id, list)
     }
 
     // 涟漪（0.8s 扩散消散），数量上限防积压
     const now = performance.now()
-    ripples = ripples.filter((r) => now - r.born < 800).slice(-40)
+    ripples = ripples.filter((r) => effectsOn && animationEnabled(byId.get(r.targetId)) && byId.has(r.targetId) && now - r.born < 800).slice(-40)
     for (const r of ripples) {
       const k = (now - r.born) / 800
       ctx.globalAlpha = (1 - k) * 0.85
@@ -117,7 +118,7 @@ export function createOverlay(canvas) {
       const breath = 1 + Math.sin(now / 300) * 0.02
       for (const [id, color] of glows) {
         const el = byId.get(id)
-        if (!el) continue
+        if (!el || !animationEnabled(el)) continue
         const tl = toViewport({ x: el.x, y: el.y }, state)
         const br = toViewport({ x: el.x + el.width, y: el.y + el.height }, state)
         const pad = 6
@@ -138,7 +139,7 @@ export function createOverlay(canvas) {
     if (badges) {
       for (const [id, b] of badges) {
         const el = byId.get(id)
-        if (!el) continue
+        if (!el || !animationEnabled(el)) continue
         const tr = toViewport({ x: el.x + el.width, y: el.y }, state)
         const r = 9
         const cx = tr.x + 4
